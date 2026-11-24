@@ -1,0 +1,10 @@
+allow ksu sysfs_thermal dir *;
+allow ksu sysfs_thermal file *;
+allow ksu sysfs_devices_system_cpu dir *;
+allow ksu sysfs_devices_system_cpu file *;
+allow ksu vendor_sysfs_kgsl dir *;
+allow ksu vendor_sysfs_kgsl file *;
+allow ksu sysfs_rsc dir *;
+allow ksu sysfs_rsc file *;
+allow ksu proc dir { getattr search open read };
+allow ksu proc file { getattr open read write };
