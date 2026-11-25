@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OUT="thermal_killer_z9(CN)_v1.0.zip"
+OUT="thermal_killer_z9(CN)_v1.1.zip"
 rm -f "$OUT"
 python3 - <<'PY'
 import zipfile, os
 
-out_zip = "thermal_killer_z9(CN)_v1.0.zip"
+out_zip = "thermal_killer_z9(CN)_v1.1.zip"
 include_files = [
     "META-INF/com/google/android/update-binary",
     "META-INF/com/google/android/updater-script",
@@ -15,7 +15,9 @@ include_files = [
     "module.prop",
     "sepolicy.rule",
     "service.sh",
+    "tk_ctl.sh",
     "uninstall.sh",
+    "webroot/index.html",
 ]
 
 with zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED) as z:
@@ -29,3 +31,4 @@ with zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED) as z:
 
 print(f"Built {out_zip} ({os.path.getsize(out_zip)} bytes)")
 PY
+sha256sum "$OUT"

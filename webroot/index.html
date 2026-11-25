@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Thermal Killer Z9 CN v1.1</title>
+<style>
+  :root {
+    --bg: #0d1017;
+    --card: #161b26;
+    --border: #252d3d;
+    --text: #eef2f8;
+    --muted: #8b96ab;
+    --accent: #ff6b4a;
+    --accent-dim: rgba(255, 107, 74, 0.16);
+    --green: #3ddc97;
+    --green-dim: rgba(61, 220, 151, 0.15);
+    --amber: #f5b942;
+    --amber-dim: rgba(245, 185, 66, 0.16);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    padding: 16px 14px 44px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.4;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .title { font-size: 19px; font-weight: 700; }
+  .badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid rgba(255, 107, 74, 0.35);
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--accent);
+    margin: 0 0 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .power-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .power-status { font-size: 15px; font-weight: 700; }
+  .power-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .power-btn {
+    border: none;
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .power-btn.on { background: var(--green); color: #091a12; }
+  .power-btn.off { background: #2c3547; color: var(--text); }
+  .power-btn:disabled { opacity: 0.5; }
+  .grid3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .grid2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .metric {
+    background: #10141d;
+    border: 1px solid #202838;
+    border-radius: 11px;
+    padding: 8px 10px;
+  }
+  .mk { font-size: 11px; color: var(--muted); }
+  .mv { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .ms { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .ok { color: var(--green); }
+  .hot { color: var(--amber); }
+  .danger { color: var(--accent); }
+  .pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .pill {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: #10141d;
+    border: 1px solid #232c3d;
+    color: var(--muted);
+  }
+  .pill strong { color: var(--text); }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid #202736;
+  }
+  .row:first-of-type { border-top: none; padding-top: 2px; }
+  .row:last-of-type { padding-bottom: 2px; }
+  .row-info { flex: 1; min-width: 0; }
+  .row-name { font-size: 14px; font-weight: 600; }
+  .row-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .warn-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 6px;
+    margin-left: 6px;
+    background: var(--amber-dim);
+    color: var(--amber);
+    vertical-align: middle;
+  }
+  .switch {
+    position: relative;
+    width: 46px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute;
+    inset: 0;
+    background: #2b3447;
+    border-radius: 999px;
+    transition: 0.18s ease;
+    cursor: pointer;
+  }
+  .slider::before {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    left: 3px;
+    top: 3px;
+    background: #d5dce8;
+    border-radius: 50%;
+    transition: 0.18s ease;
+  }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before {
+    transform: translateX(20px);
+    background: #ffffff;
+  }
+  .switch input:disabled + .slider { opacity: 0.45; }
+  .seg-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .seg {
+    background: #10141d;
+    border: 1px solid #252e40;
+    color: var(--muted);
+    border-radius: 10px;
+    padding: 8px 4px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+  }
+  .seg.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .btn {
+    border: 1px solid var(--border);
+    background: #1d2433;
+    color: var(--text);
+    border-radius: 11px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn:disabled { opacity: 0.5; }
+  .note {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 6px;
+  }
+  #toast {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%) translateY(110px);
+    background: #232b3d;
+    color: var(--text);
+    border: 1px solid #35405a;
+    padding: 10px 16px;
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    transition: transform 0.2s ease;
+    z-index: 99;
+    max-width: calc(100vw - 28px);
+    text-align: center;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">Thermal Killer Z9 CN</div>
+    <span class="badge" id="verBadge">v1.1</span>
+  </div>
+
+  <div class="card">
+    <div class="power-bar">
+      <div>
+        <div class="power-status" id="stRun">Đang kiểm tra...</div>
+        <div class="power-sub" id="stSub">iQOO Z9 CN (V2361A / SM7550)</div>
+      </div>
+      <button class="power-btn off" id="btnPower">...</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">
+      <span>Thông số trực tiếp</span>
+      <span id="liveTick" style="font-size:11px;color:var(--muted);text-transform:none;">Tự cập nhật 3s</span>
+    </div>
+    <div class="grid3">
+      <div class="metric">
+        <div class="mk">Pin</div>
+        <div class="mv" id="tBat">--</div>
+      </div>
+      <div class="metric">
+        <div class="mk">Mặt lưng (Skin)</div>
+        <div class="mv" id="tSkin">--</div>
+      </div>
+      <div class="metric">
+        <div class="mk">Vỏ game (Shell)</div>
+        <div class="mv" id="tShell">--</div>
+      </div>
+    </div>
+    <div class="grid3">
+      <div class="metric">
+        <div class="mk">CPU Cụm 0</div>
+        <div class="mv" id="cP0">--</div>
+        <div class="ms" id="mP0">max --</div>
+      </div>
+      <div class="metric">
+        <div class="mk">CPU Cụm 4</div>
+        <div class="mv" id="cP4">--</div>
+        <div class="ms" id="mP4">max --</div>
+      </div>
+      <div class="metric">
+        <div class="mk">CPU Cụm 7</div>
+        <div class="mv" id="cP7">--</div>
+        <div class="ms" id="mP7">max --</div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="metric">
+        <div class="mk">GPU Adreno 720</div>
+        <div class="mv" id="gClk">--</div>
+        <div class="ms" id="gSub">tải --%</div>
+      </div>
+      <div class="metric">
+        <div class="mk">Hệ thống nhiệt</div>
+        <div class="mv" id="sTe">--</div>
+        <div class="ms" id="sFla">FLA: --</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="btnRefresh">Làm mới ngay</button>
+      <button class="btn" id="btnReset">Khôi phục mặc định</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Khóa cứng xung trần (Tùy chọn)</div>
+    <div class="row">
+      <div class="row-info">
+        <div class="row-name">Khóa cứng GPU 975 MHz <span class="warn-tag">TẮT MẶC ĐỊNH</span></div>
+        <div class="row-desc">Ép sàn GPU ở mức cao nhất (min_pwrlevel=0). Tốn pin &amp; nóng hơn, nên dùng kèm quạt sò lạnh. Tự trả zin khi tắt module.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="sw_gpu_lock_max" data-key="gpu_lock_max" data-on="on" data-off="off" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="row">
+      <div class="row-info">
+        <div class="row-name">Khóa cứng CPU tối đa <span class="warn-tag">TẮT MẶC ĐỊNH</span></div>
+        <div class="row-desc">Giữ cứng cả 3 cụm 1.80 / 2.40 / 2.63 GHz. Chỉ nên bật khi test benchmark hoặc kẹp quạt sò lạnh mạnh. Tự trả zin khi tắt module.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="sw_cpu_lock_max" data-key="cpu_lock_max" data-on="on" data-off="off" />
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Tùy chỉnh tắt bóp nhiệt</div>
+    <div class="row">
+      <div class="row-info">
+        <div class="row-name">Mở khóa FPS gốc (60/90/120Hz)</div>
+        <div class="row-desc">Tắt thermal_fps_adjuster &amp; DisplayModeDirector skin throttle.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="sw_fps_mode" data-key="fps_mode" data-on="unlock" data-off="off" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="row">
+      <div class="row-info">
+        <div class="row-name">Mở khóa trần GPU (975 MHz)</div>
+        <div class="row-desc">Giữ trần max_clock_mhz = 975 MHz &amp; thermal_pwrlevel = 0 (vẫn tự hạ xung khi nhẹ).</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="sw_gpu_mode" data-key="gpu_mode" data-on="unlock" data-off="off" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="row">
+      <div class="row-info">
+        <div class="row-name">Tắt giới hạn RSC FLA</div>
+        <div class="row-desc">Đặt fla_enable = 0 &amp; min_cap = 1000 để tránh bóp khung hình ngầm.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="sw_fla_mode" data-key="fla_mode" data-on="disable" data-off="observe" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="row">
+      <div class="row-info">
+        <div class="row-name">Giữ trần xung CPU</div>
+        <div class="row-desc">Liên tục giữ scaling_max_freq ở mức tối đa 1.80 / 2.40 / 2.63 GHz.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="sw_cap_mode" data-key="cap_mode" data-on="force" data-off="manual" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="row">
+      <div class="row-info">
+        <div class="row-name">Dừng dịch vụ phụ (vperf / vivoperf)</div>
+        <div class="row-desc">Ngăn dịch vụ hiệu năng hệ thống hạ xung ngược lại khi máy ấm.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="sw_extra_services" data-key="extra_services" data-on="on" data-off="off" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div style="padding-top:10px;border-top:1px solid #202736;">
+      <div class="row-name">Bảo vệ quá nhiệt tự động (temp_guard)</div>
+      <div class="row-desc">Tự tạm trả điều khiển nhiệt &amp; mở khóa sàn CPU/GPU nếu nhiệt SoC chạm ngưỡng:</div>
+      <div class="seg-row" id="guardRow">
+        <button class="seg" data-guard="off">Tắt</button>
+        <button class="seg" data-guard="70">70°C</button>
+        <button class="seg" data-guard="75">75°C</button>
+        <button class="seg" data-guard="80">80°C</button>
+        <button class="seg" data-guard="85">85°C</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    Nên TẮT module khi không chơi game để máy mát &amp; tiết kiệm pin.<br />
+    Mọi thay đổi có hiệu lực ngay sau 1 giây — không cần khởi động lại.
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+  var CTL = "/data/adb/modules/vivo_iqoo_thermal_killer/tk_ctl.sh";
+  var cbSeq = 0;
+  var busy = false;
+  var pollTimer = null;
+  var toastTimer = null;
+
+  function toast(msg) {
+    var el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 2400);
+  }
+
+  function exec(cmd) {
+    return new Promise(function (resolve, reject) {
+      if (typeof ksu === "undefined" || !ksu || typeof ksu.exec !== "function") {
+        reject(new Error("Chỉ chạy trong KernelSU WebUI"));
+        return;
+      }
+      var cb = "__tk_cb_" + (++cbSeq) + "_" + Date.now();
+      var done = false;
+      var timer = setTimeout(function () {
+        if (!done) {
+          done = true;
+          try { delete window[cb]; } catch (e) {}
+          reject(new Error("Hết thời gian chờ"));
+        }
+      }, 10000);
+      window[cb] = function (code, stdout, stderr) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try { delete window[cb]; } catch (e) {}
+        resolve({
+          code: typeof code === "number" ? code : parseInt(code, 10) || 0,
+          stdout: stdout == null ? "" : String(stdout),
+          stderr: stderr == null ? "" : String(stderr)
+        });
+      };
+      try {
+        ksu.exec(cmd, "{}", cb);
+      } catch (e1) {
+        try {
+          ksu.exec(cmd, cb);
+        } catch (e2) {
+          done = true;
+          clearTimeout(timer);
+          try { delete window[cb]; } catch (e) {}
+          reject(e2);
+        }
+      }
+    });
+  }
+
+  function fmtGhz(khz) {
+    var n = Number(khz) || 0;
+    return n > 0 ? (n / 1000000).toFixed(2) + " GHz" : "--";
+  }
+
+  function fmtTemp(raw, div) {
+    var n = Number(raw) || 0;
+    if (!n) return { text: "--", cls: "" };
+    var c = n / div;
+    var cls = c >= 45 ? "danger" : (c >= 41 ? "hot" : "ok");
+    return { text: c.toFixed(1) + "°C", cls: cls };
+  }
+
+  function setBusy(flag) {
+    busy = flag;
+    var els = document.querySelectorAll("input, button");
+    for (var i = 0; i < els.length; i++) els[i].disabled = flag;
+  }
+
+  function render(d) {
+    if (!d) return;
+    document.getElementById("verBadge").textContent = d.version || "v1.1";
+    var runEl = document.getElementById("stRun");
+    var subEl = document.getElementById("stSub");
+    var pBtn = document.getElementById("btnPower");
+    if (d.running) {
+      runEl.textContent = "ĐANG BẬT · Tắt bóp nhiệt";
+      runEl.className = "power-status ok";
+      subEl.textContent = (d.model || "V2361A") + " · Daemon PID " + d.pid;
+      pBtn.textContent = "Đang BẬT";
+      pBtn.className = "power-btn on";
+    } else {
+      runEl.textContent = "ĐANG TẮT · Đã trả zin 100%";
+      runEl.className = "power-status";
+      subEl.textContent = (d.model || "V2361A") + " · Bấm nút bên phải để bật";
+      pBtn.textContent = "Đang TẮT";
+      pBtn.className = "power-btn off";
+    }
+
+    var tb = fmtTemp(d.temp && d.temp.bat, 10);
+    var ts = fmtTemp(d.temp && d.temp.skin, 1000);
+    var tsh = fmtTemp(d.temp && d.temp.shell, 1000);
+    var elB = document.getElementById("tBat"); elB.textContent = tb.text; elB.className = "mv " + tb.cls;
+    var elS = document.getElementById("tSkin"); elS.textContent = ts.text; elS.className = "mv " + ts.cls;
+    var elSh = document.getElementById("tShell"); elSh.textContent = tsh.text; elSh.className = "mv " + tsh.cls;
+
+    if (d.cpu) {
+      document.getElementById("cP0").textContent = fmtGhz(d.cpu.p0[0]);
+      document.getElementById("mP0").textContent = "trần " + fmtGhz(d.cpu.p0[1]);
+      document.getElementById("cP4").textContent = fmtGhz(d.cpu.p4[0]);
+      document.getElementById("mP4").textContent = "trần " + fmtGhz(d.cpu.p4[1]);
+      document.getElementById("cP7").textContent = fmtGhz(d.cpu.p7[0]);
+      document.getElementById("mP7").textContent = "trần " + fmtGhz(d.cpu.p7[1]);
+    }
+    if (d.gpu) {
+      document.getElementById("gClk").textContent = d.gpu.cur + " / " + d.gpu.max + " MHz";
+      document.getElementById("gSub").textContent =
+        "tải " + d.gpu.busy + "% · " + (Number(d.gpu.minPwr) === 0 ? "Đang khóa trần" : "Tự động");
+    }
+    if (d.sys) {
+      document.getElementById("sTe").textContent = "TE: " + (d.sys.te || "stopped");
+      document.getElementById("sFla").textContent =
+        "FLA=" + d.sys.fla + " · TFA=" + (d.sys.tfa === "false" ? "OFF" : "ON");
+    }
+
+    if (d.cfg) {
+      var sws = document.querySelectorAll('input[type="checkbox"][data-key]');
+      for (var i = 0; i < sws.length; i++) {
+        var sw = sws[i];
+        sw.checked = d.cfg[sw.dataset.key] === sw.dataset.on;
+      }
+      var segs = document.querySelectorAll(".seg");
+      for (var j = 0; j < segs.length; j++) {
+        segs[j].classList.toggle("active", segs[j].dataset.guard === String(d.cfg.temp_guard));
+      }
+    }
+  }
+
+  function parseJson(stdout) {
+    var lines = (stdout || "").trim().split("\n");
+    for (var i = lines.length - 1; i >= 0; i--) {
+      var s = lines[i].trim();
+      if (s.charAt(0) === "{") return JSON.parse(s);
+    }
+    throw new Error("Dữ liệu JSON không hợp lệ");
+  }
+
+  function runCtl(args, msg, silent) {
+    if (!silent) setBusy(true);
+    return exec("sh " + CTL + " " + args).then(function (r) {
+      if (r.code !== 0) throw new Error(r.stderr || r.stdout || ("Exit " + r.code));
+      render(parseJson(r.stdout));
+      if (msg) toast(msg);
+    }).catch(function (err) {
+      if (!silent) toast("Lỗi: " + (err && err.message ? err.message : err));
+    }).finally(function () {
+      if (!silent) setBusy(false);
+    });
+  }
+
+  document.getElementById("btnPower").addEventListener("click", function () {
+    if (!busy) runCtl("toggle", "Đã chuyển trạng thái Thermal Killer!");
+  });
+
+  document.getElementById("btnRefresh").addEventListener("click", function () {
+    if (!busy) runCtl("status", "Đã làm mới thông số!");
+  });
+
+  document.getElementById("btnReset").addEventListener("click", function () {
+    if (!busy) runCtl("reset", "Đã khôi phục mặc định (tắt khóa trần CPU/GPU)!");
+  });
+
+  document.addEventListener("change", function (e) {
+    var sw = e.target;
+    if (!sw || !sw.dataset || !sw.dataset.key || busy) return;
+    var val = sw.checked ? sw.dataset.on : sw.dataset.off;
+    runCtl("set " + sw.dataset.key + " " + val, (sw.checked ? "Đã BẬT " : "Đã TẮT ") + sw.dataset.key);
+  });
+
+  document.getElementById("guardRow").addEventListener("click", function (e) {
+    var btn = e.target;
+    if (!btn || !btn.dataset || !btn.dataset.guard || busy) return;
+    var g = btn.dataset.guard;
+    runCtl("set temp_guard " + g, g === "off" ? "Đã tắt bảo vệ quá nhiệt" : "Đặt bảo vệ quá nhiệt: " + g + "°C");
+  });
+
+  function startPoll() {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(function () {
+      if (!busy && !document.hidden) runCtl("status", null, true);
+    }, 3000);
+  }
+
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && !busy) runCtl("status", null, true);
+  });
+
+  runCtl("status").then(startPoll);
+})();
+</script>
+</body>
+</html>

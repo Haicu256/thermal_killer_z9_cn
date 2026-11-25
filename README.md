@@ -1,8 +1,8 @@
-# thermal_killer_z9(CN)_v1.0
+# thermal_killer_z9(CN)_v1.1
 
-> **Module KernelSU tối ưu riêng cho vivo iQOO Z9 bản nội địa Trung Quốc (`V2361A` / `PD2361`)** — Tắt bóp nhiệt CPU/GPU + Chống khóa tụt 90/60 FPS khi nóng mà vẫn giữ tần số quét linh hoạt (60/90/120Hz) theo cài đặt trong game.
+> **Module KernelSU tối ưu riêng cho vivo iQOO Z9 bản nội địa Trung Quốc (`V2361A` / `PD2361`)** — Có sẵn **WebUI KernelSU**, tắt bóp nhiệt CPU/GPU, chống khóa tụt 90/60 FPS mà vẫn giữ Hz linh hoạt (60/90/120Hz), kèm tùy chọn **khóa trần xung GPU/CPU** (mặc định TẮT).
 >
-> **Dedicated KernelSU module for vivo iQOO Z9 China (`V2361A` / `PD2361`)** — Disables CPU/GPU thermal throttling & fixes thermal 90/60 FPS refresh-rate locks without forcing a fixed 120Hz display rate.
+> **Dedicated KernelSU module for vivo iQOO Z9 China (`V2361A` / `PD2361`)** — Built-in **KernelSU WebUI**, disables CPU/GPU thermal throttling & thermal 90/60 FPS refresh-rate locks without forcing a fixed 120Hz display rate, plus opt-in **Max GPU/CPU Clock Lock** (OFF by default).
 
 ---
 
@@ -29,21 +29,30 @@
 - **Thuần khiết riêng cho `V2361A` (Zero Bloat):**
   - Đã cắt bỏ ~790 dòng code chết của Neo10/Neo11/V2502/OriginOS 6/FuntouchOS 16 và 11 đường dẫn `/sys`, `/proc` không tồn tại trên Z9.
   - Rút gọn `sepolicy.rule` chỉ giữ đúng 5 nhãn SELinux thực tế trên `V2361A`.
+- **KernelSU WebUI tích hợp (`webroot/index.html` + `tk_ctl.sh`):**
+  - Theo dõi trực tiếp mỗi 3 giây: nhiệt độ Pin / Skin / Shell, xung thực tế 3 cụm CPU (`policy0/4/7`), xung & % tải GPU, trạng thái `thermal-engine` / `FLA` / `TFA` / `Temp Guard`.
+  - Bật/tắt toàn bộ module (ON/OFF), cấu hình `fps_mode`, `gpu_mode`, `fla_mode`, `cap_mode`, `extra_services`, `temp_guard` và khôi phục mặc định ngay trên giao diện — có hiệu lực tức thì không cần Soft Reboot.
+- **Tùy chọn khóa cứng xung trần GPU / CPU (Opt-in — Mặc định TẮT):**
+  - `gpu_lock_max`: Giữ sàn `min_pwrlevel = 0` (`975 MHz` liên tục) cho tác vụ benchmark / test game nặng.
+  - `cpu_lock_max`: Giữ sàn `scaling_min_freq` 3 cụm CPU ở mức trần (`1.80 / 2.40 / 2.63 GHz`).
+  - Tự động xả về xung động zin (`min_pwrlevel = 7` / `259 MHz`, CPU `614 / 653 / 653 MHz`) ngay khi tắt toggle, bấm OFF, gỡ module, hoặc khi `temp_guard` kích hoạt bảo vệ nhiệt.
 - **Nút bấm Thao tác (`Action`) BẬT / TẮT tức thì — Trả zin 100%:**
   - Chuyển **ON ↔ OFF** có hiệu lực ngay sau ~2 giây **không cần Soft Reboot**.
-  - Khi bấm **OFF** (hoặc khi gỡ module nhờ `uninstall.sh`), tự động khôi phục: `fla_enable = 1`, `fla_min_cap_guarantee = 850`, `sched_enable_tp`, `cmd thermalservice reset`, `persist.debug.rms.thermal_fps_adjuster = true` + khởi động lại `com.vivo.gamewatch`, `gamewatch_game_target_fps = -1`, bật lại `thermal-engine` và các dịch vụ phụ.
+  - Khi bấm **OFF** (hoặc khi gỡ module nhờ `uninstall.sh`), tự động khôi phục: `fla_enable = 1`, `fla_min_cap_guarantee = 850`, `sched_enable_tp`, `min_pwrlevel = 7`, CPU `scaling_min_freq` zin, `cmd thermalservice reset`, `persist.debug.rms.thermal_fps_adjuster = true` + khởi động lại `com.vivo.gamewatch`, `gamewatch_game_target_fps = -1`, bật lại `thermal-engine` và các dịch vụ phụ.
 
 ### 3. Hướng dẫn cài đặt & sử dụng
-1. Tải `thermal_killer_z9(CN)_v1.0.zip` từ mục **[Releases](../../releases)**.
+1. Tải `thermal_killer_z9(CN)_v1.1.zip` từ mục **[Releases](../../releases)**.
 2. Mở **KernelSU → Module → Cài đặt** → chọn file ZIP → **Soft Reboot** 1 lần.
-   *(Module dùng `id=vivo_iqoo_thermal_killer`, có thể nâng cấp đè lên các bản `v3.0.x` cũ; nếu bản cũ đang ở trạng thái OFF thì sau khi Soft Reboot bấm nút **Thao tác / Action** 1 lần để chuyển sang ON).*
-3. **Bật / Tắt hàng ngày:** Bấm nút **Thao tác (`Action`)** trong KernelSU — đổi trạng thái ngay sau ~2 giây, không cần Soft Reboot.
+   *(Module dùng `id=vivo_iqoo_thermal_killer`, có thể nâng cấp đè lên các bản cũ; nếu đang ở trạng thái OFF thì sau khi Soft Reboot bấm nút **Thao tác / Action** hoặc mở **WebUI** để bật ON).*
+3. **Bật / Tắt & tinh chỉnh hàng ngày:** Bấm nút **Mở (WebUI)** hoặc **Thao tác (`Action`)** trong KernelSU — đổi trạng thái ngay lập tức, không cần Soft Reboot.
 
-### 4. Tùy chỉnh cấu hình (Tùy chọn)
-Ghi 1 dòng vào file tương ứng trong `/data/adb/modules/vivo_iqoo_thermal_killer/` (tự nạp lại mỗi 5 giây):
+### 4. Tùy chỉnh cấu hình (WebUI hoặc file)
+Có thể chỉnh trực tiếp trong **WebUI KernelSU**, hoặc ghi 1 dòng vào file tương ứng trong `/data/adb/modules/vivo_iqoo_thermal_killer/`:
 
 | File cấu hình | Mặc định | Giá trị hỗ trợ | Tác dụng |
 | :--- | :---: | :--- | :--- |
+| `gpu_lock_max` | `off` | `off` \| `on` | Giữ cứng GPU `975 MHz` (`min_pwrlevel=0`, tốn pin/nóng hơn — tự xả khi OFF hoặc quá nhiệt) |
+| `cpu_lock_max` | `off` | `off` \| `on` | Giữ cứng 3 cụm CPU ở xung trần (`1.80/2.40/2.63 GHz`, chỉ nên bật khi có sò lạnh) |
 | `cap_mode` | `force` | `force` \| `manual` | `force`: tự nâng trần `scaling_max_freq` về tối đa; `manual`: nhường cho Scene/tool ngoài |
 | `fla_mode` | `disable` | `disable` \| `observe` | Tắt hoặc chỉ quan sát `/sys/rsc/fas/fla_enable` |
 | `heatctl_mode` | `auto` | `auto` \| `disable` \| `observe` | Ghi `88000060 0` vào `/sys/rsc/svp/cpulimit` |
@@ -84,7 +93,9 @@ su -c 'dumpsys thermalservice | grep -E "IsStatusOverride|Thermal Status"; getpr
   - Clears Android 15 `DisplayModeDirector` `PRIORITY_SKIN_TEMPERATURE` vote via `cmd thermalservice override-status 0` + `inject-temperature SKIN NONE skin 30.0`.
   - Disables GameWatch `ThermalFpsAdjuster` (`persist.debug.rms.thermal_fps_adjuster=false`) and safely respawns the persistent `com.vivo.gamewatch` process.
   - Does **not** force `min_refresh_rate=120`, allowing games set to 60, 90, or 120 FPS to run natively at their target refresh rate.
-- **Instant Action Button Toggle (No Soft Reboot Needed):** Toggle ON/OFF directly via KernelSU's Action button (~2 seconds). OFF mode and `uninstall.sh` cleanly restore all props, RSC values, `thermalservice`, `com.vivo.gamewatch`, and system services back to 100% stock.
+- **Built-in KernelSU WebUI (`webroot/index.html` + `tk_ctl.sh`):** Live 3-second telemetry (Battery/Skin/Shell temps, 3-cluster CPU clocks, GPU clock & busy %, `thermal-engine`/`FLA`/`TFA` state) plus instant toggles for power ON/OFF, thermal modes, `temp_guard`, and reset.
+- **Opt-in Max GPU / CPU Clock Lock (`OFF` by default):** Optional `gpu_lock_max` (`min_pwrlevel=0`, `975 MHz`) and `cpu_lock_max` (`1.80 / 2.40 / 2.63 GHz`) switches with automatic 100% stock restore when turned off, when the module is disabled, on uninstall, or if `temp_guard` trips.
+- **Instant Action Button Toggle (No Soft Reboot Needed):** Toggle ON/OFF directly via KernelSU's Action button or WebUI (~2 seconds). OFF mode and `uninstall.sh` cleanly restore all props, GPU/CPU min floors, RSC values, `thermalservice`, `com.vivo.gamewatch`, and system services back to 100% stock.
 
 ### 3. Build from Source
 ```bash

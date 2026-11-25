@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Action toggle ON/OFF for thermal_killer_z9(CN)_v1.0 (iQOO Z9 CN - V2361A)
+# Action toggle ON/OFF for thermal_killer_z9(CN)_v1.1 (iQOO Z9 CN - V2361A)
 
 MODDIR=${0%/*}
 FLAG="$MODDIR/toggle_off"
@@ -40,10 +40,18 @@ if alive && [ ! -f "$FLAG" ]; then
   WALT_TP=0
   RSC_FLA=1
   RSC_MIN_CAP=850
+  MIN_P0=614400
+  MIN_P4=652800
+  MIN_P7=652800
+  KGSL_STOCK_MIN_PWR=7
   [ -f "$ORIG" ] && . "$ORIG"
   [ -e /proc/sys/walt/sched_enable_tp ] && echo "${WALT_TP:-0}" > /proc/sys/walt/sched_enable_tp 2>/dev/null
   [ -e /sys/rsc/fas/fla_enable ] && echo "${RSC_FLA:-1}" > /sys/rsc/fas/fla_enable 2>/dev/null
   [ -e /sys/rsc/fas/fla_min_cap_guarantee ] && echo "${RSC_MIN_CAP:-850}" > /sys/rsc/fas/fla_min_cap_guarantee 2>/dev/null
+  [ -e /sys/class/kgsl/kgsl-3d0/min_pwrlevel ] && echo "${KGSL_STOCK_MIN_PWR:-7}" > /sys/class/kgsl/kgsl-3d0/min_pwrlevel 2>/dev/null
+  [ -e /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq ] && echo "${MIN_P0:-614400}" > /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq 2>/dev/null
+  [ -e /sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq ] && echo "${MIN_P4:-652800}" > /sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq 2>/dev/null
+  [ -e /sys/devices/system/cpu/cpufreq/policy7/scaling_min_freq ] && echo "${MIN_P7:-652800}" > /sys/devices/system/cpu/cpufreq/policy7/scaling_min_freq 2>/dev/null
   rm -f "$ORIG"
 
   cmd thermalservice reset >/dev/null 2>&1
@@ -62,8 +70,8 @@ if alive && [ ! -f "$FLAG" ]; then
   setprop ctl.interface_start vendor.vivo.hardware.vperf@1.0::IVPerf/default 2>/dev/null
 
   sleep 2
-  desc "[⚪ OFF · Đã trả zin 100%] Bấm Thao tác (Action) để BẬT tắt nhiệt + giữ FPS gốc."
-  echo "thermal_killer_z9(CN)_v1.0: OFF (DA TRA ZIN 100%)"
+  desc "[⚪ OFF · Đã trả zin 100%] Bấm Thao tác (Action) hoặc WebUI để BẬT tắt nhiệt + giữ FPS gốc."
+  echo "thermal_killer_z9(CN)_v1.1: OFF (DA TRA ZIN 100%)"
   echo "- fla_enable / min_cap: $(cat /sys/rsc/fas/fla_enable 2>/dev/null) / $(cat /sys/rsc/fas/fla_min_cap_guarantee 2>/dev/null)"
   echo "- thermal_fps_adjuster: $(getprop persist.debug.rms.thermal_fps_adjuster)"
   echo "- thermal-engine:       $(getprop init.svc.thermal-engine)"
@@ -75,8 +83,8 @@ else
   sh "$MODDIR/service.sh" </dev/null >/dev/null 2>&1
   sleep 2
   if alive; then
-    desc "[✅ ON · Đang chạy] Đã tắt bóp nhiệt CPU/GPU + giữ FPS gốc (60/90/120Hz). Bấm Action để tắt."
-    echo "thermal_killer_z9(CN)_v1.0: ON"
+    desc "[✅ ON · Đang chạy] Đã tắt bóp nhiệt CPU/GPU + giữ FPS gốc (60/90/120Hz). Mở WebUI hoặc bấm Action để chỉnh/tắt."
+    echo "thermal_killer_z9(CN)_v1.1: ON"
     echo "- daemon PID:           $(cat "$LOCK")"
     echo "- fla_enable / min_cap: $(cat /sys/rsc/fas/fla_enable 2>/dev/null) / $(cat /sys/rsc/fas/fla_min_cap_guarantee 2>/dev/null)"
     echo "- thermal_fps_adjuster: $(getprop persist.debug.rms.thermal_fps_adjuster)"

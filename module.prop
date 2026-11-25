@@ -1,6 +1,6 @@
 id=vivo_iqoo_thermal_killer
-name=thermal_killer_z9(CN)_v1.0
-version=v1.0
-versionCode=100
+name=thermal_killer_z9(CN)_v1.1
+version=v1.1
+versionCode=110
 author=Custom Pure Build for iQOO Z9 CN (V2361A / PD2361)
-description=Tối ưu riêng cho iQOO Z9 CN (OriginOS 5): Tắt bóp nhiệt CPU/GPU + Giữ FPS gốc (60/90/120Hz). Bấm Action để BẬT/TẮT.
+description=[✅ ON · Đang chạy] Đã tắt bóp nhiệt CPU/GPU + giữ FPS gốc (60/90/120Hz) + WebUI theo dõi trực tiếp & tùy chọn khóa trần CPU/GPU. Bấm Action để tắt.

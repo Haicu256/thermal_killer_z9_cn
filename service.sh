@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# thermal_killer_z9(CN)_v1.0 - Pure build for vivo iQOO Z9 CN (V2361A / PD2361 / SM7550 / OriginOS 5)
+# thermal_killer_z9(CN)_v1.1 - Pure build for vivo iQOO Z9 CN (V2361A / PD2361 / SM7550 / OriginOS 5)
 # Zero dead code, zero non-existent nodes, zero system/vendor mounts.
 
 MODDIR=${0%/*}
@@ -22,6 +22,8 @@ EXTRA_SERVICES=on       # on | off | all
 GPU_MODE=unlock         # unlock | off
 FPS_MODE=unlock         # unlock | off
 GUARD_LIMIT=0           # 0 (off) or 60..100 (°C)
+GPU_LOCK_MAX=off        # off | on (opt-in: lock GPU floor to 975MHz)
+CPU_LOCK_MAX=off        # off | on (opt-in: lock CPU min_freq to max_freq)
 
 CONFIG_LAST_CYCLE=-100
 SERVICE_LAST_CYCLE=-100
@@ -31,13 +33,17 @@ FPS_LAST_CYCLE=-100
 FPS_INIT_DONE=0
 EXTRA_IFACE_DONE=0
 EXTRA_LOGGED=
+GPU_LOCK_APPLIED=0
+CPU_LOCK_APPLIED=0
 
 THERMAL_STATE_NODES=""
 KGSL_PWRLEVEL="/sys/class/kgsl/kgsl-3d0/thermal_pwrlevel"
+KGSL_MIN_PWR="/sys/class/kgsl/kgsl-3d0/min_pwrlevel"
 KGSL_MAX_MHZ="/sys/class/kgsl/kgsl-3d0/max_clock_mhz"
 KGSL_DEVFREQ_MAX="/sys/class/kgsl/kgsl-3d0/devfreq/max_freq"
 KGSL_AVAIL_FREQ="/sys/class/kgsl/kgsl-3d0/gpu_available_frequencies"
 KGSL_WRITE_FAILS=0
+KGSL_STOCK_MIN_PWR=7
 
 RSC_FLA="/sys/rsc/fas/fla_enable"
 RSC_MIN_CAP="/sys/rsc/fas/fla_min_cap_guarantee"
@@ -46,6 +52,9 @@ RSC_HEATCTL="/sys/rsc/svp/cpulimit"
 WALT_TP="/proc/sys/walt/sched_enable_tp"
 
 POLICIES="/sys/devices/system/cpu/cpufreq/policy0 /sys/devices/system/cpu/cpufreq/policy4 /sys/devices/system/cpu/cpufreq/policy7"
+MIN_P0=614400
+MIN_P4=652800
+MIN_P7=652800
 MAX_P0=1804800
 MAX_P4=2400000
 MAX_P7=2630400
@@ -108,6 +117,21 @@ init_hw_caps() {
     fi
   fi
 
+  if [ -r /sys/class/kgsl/kgsl-3d0/num_pwrlevels ]; then
+    IFS= read -r _np < /sys/class/kgsl/kgsl-3d0/num_pwrlevels 2>/dev/null
+    case "$_np" in ''|*[!0-9]*) ;; *) [ "$_np" -gt 1 ] && KGSL_STOCK_MIN_PWR=$((_np - 1)) ;; esac
+  fi
+  if [ -r "$ORIG" ]; then
+    while IFS='=' read -r _ok _ov; do
+      case "$_ok" in
+        MIN_P0) case "$_ov" in ''|*[!0-9]*) ;; *) MIN_P0=$_ov ;; esac ;;
+        MIN_P4) case "$_ov" in ''|*[!0-9]*) ;; *) MIN_P4=$_ov ;; esac ;;
+        MIN_P7) case "$_ov" in ''|*[!0-9]*) ;; *) MIN_P7=$_ov ;; esac ;;
+        KGSL_STOCK_MIN_PWR) case "$_ov" in ''|*[!0-9]*) ;; *) KGSL_STOCK_MIN_PWR=$_ov ;; esac ;;
+      esac
+    done < "$ORIG"
+  fi
+
   # Discover thermal zones once for guard & snapshot
   GUARD_ZONES=""
   for z in /sys/class/thermal/thermal_zone*; do
@@ -124,6 +148,16 @@ init_hw_caps() {
 }
 
 read_config() {
+  if [ -f "$MODDIR/.reload" ]; then
+    rm -f "$MODDIR/.reload" 2>/dev/null
+    CONFIG_LAST_CYCLE=-100
+    DISCOVERY_LAST_CYCLE=-100
+    SERVICE_LAST_CYCLE=-100
+    GPU_LAST_CYCLE=-100
+    FPS_LAST_CYCLE=-100
+    EXTRA_IFACE_DONE=0
+    FPS_INIT_DONE=0
+  fi
   [ $((CYCLE - CONFIG_LAST_CYCLE)) -ge 5 ] || return 0
   CONFIG_LAST_CYCLE=$CYCLE
 
@@ -134,6 +168,8 @@ read_config() {
   GPU_MODE=unlock
   FPS_MODE=unlock
   GUARD_LIMIT=0
+  GPU_LOCK_MAX=off
+  CPU_LOCK_MAX=off
 
   if [ -f "$MODDIR/cap_mode" ]; then
     IFS= read -r v < "$MODDIR/cap_mode" 2>/dev/null
@@ -158,6 +194,14 @@ read_config() {
   if [ -f "$MODDIR/fps_mode" ]; then
     IFS= read -r v < "$MODDIR/fps_mode" 2>/dev/null
     case "$v" in unlock|off) FPS_MODE="$v" ;; esac
+  fi
+  if [ -f "$MODDIR/gpu_lock_max" ]; then
+    IFS= read -r v < "$MODDIR/gpu_lock_max" 2>/dev/null
+    case "$v" in on|off) GPU_LOCK_MAX="$v" ;; esac
+  fi
+  if [ -f "$MODDIR/cpu_lock_max" ]; then
+    IFS= read -r v < "$MODDIR/cpu_lock_max" 2>/dev/null
+    case "$v" in on|off) CPU_LOCK_MAX="$v" ;; esac
   fi
   if [ -f "$MODDIR/temp_guard" ]; then
     IFS= read -r v < "$MODDIR/temp_guard" 2>/dev/null
@@ -212,6 +256,7 @@ guard_check() {
       zt=""
       [ -n "$gtz" ] && IFS= read -r zt < "$gtz/type" 2>/dev/null
       log "GUARD ON: tmax=${gtmax}(${zt:-?}) >= ${GUARD_LIMIT} -> tam tra dieu khien nhiet"
+      release_clock_locks
       start thermal-engine 2>/dev/null
       setprop ctl.start thermal-engine 2>/dev/null
       cmd thermalservice reset >/dev/null 2>&1
@@ -420,6 +465,69 @@ log_z9_snapshot() {
   COOL_LAST=""
 }
 
+release_clock_locks() {
+  if [ "$GPU_LOCK_APPLIED" = "1" ] && [ -e "$KGSL_MIN_PWR" ]; then
+    chmod 0644 "$KGSL_MIN_PWR" 2>/dev/null
+    printf '%s\n' "${KGSL_STOCK_MIN_PWR:-7}" > "$KGSL_MIN_PWR" 2>/dev/null
+    GPU_LOCK_APPLIED=0
+  fi
+  if [ "$CPU_LOCK_APPLIED" = "1" ]; then
+    for pair in "0:${MIN_P0:-614400}" "4:${MIN_P4:-652800}" "7:${MIN_P7:-652800}"; do
+      idx=${pair%:*}
+      mn=${pair#*:}
+      snode="/sys/devices/system/cpu/cpufreq/policy$idx/scaling_min_freq"
+      [ -e "$snode" ] || continue
+      chmod 0644 "$snode" 2>/dev/null
+      printf '%s\n' "$mn" > "$snode" 2>/dev/null
+    done
+    CPU_LOCK_APPLIED=0
+  fi
+}
+
+apply_clock_locks() {
+  if [ "$GPU_LOCK_MAX" = "on" ]; then
+    if [ -e "$KGSL_MIN_PWR" ]; then
+      IFS= read -r _mp < "$KGSL_MIN_PWR" 2>/dev/null
+      if [ "$_mp" != "0" ]; then
+        chmod 0644 "$KGSL_MIN_PWR" 2>/dev/null
+        printf '0\n' > "$KGSL_MIN_PWR" 2>/dev/null
+      fi
+      GPU_LOCK_APPLIED=1
+    fi
+  elif [ "$GPU_LOCK_APPLIED" = "1" ]; then
+    if [ -e "$KGSL_MIN_PWR" ]; then
+      chmod 0644 "$KGSL_MIN_PWR" 2>/dev/null
+      printf '%s\n' "${KGSL_STOCK_MIN_PWR:-7}" > "$KGSL_MIN_PWR" 2>/dev/null
+    fi
+    GPU_LOCK_APPLIED=0
+  fi
+
+  if [ "$CPU_LOCK_MAX" = "on" ]; then
+    for pair in "0:$MAX_P0" "4:$MAX_P4" "7:$MAX_P7"; do
+      idx=${pair%:*}
+      mx=${pair#*:}
+      snode="/sys/devices/system/cpu/cpufreq/policy$idx/scaling_min_freq"
+      [ -r "$snode" ] || continue
+      IFS= read -r cur < "$snode" 2>/dev/null
+      if [ "$cur" != "$mx" ]; then
+        chmod 0644 "$snode" 2>/dev/null
+        printf '%s\n' "$mx" > "$snode" 2>/dev/null
+      fi
+    done
+    CPU_LOCK_APPLIED=1
+  elif [ "$CPU_LOCK_APPLIED" = "1" ]; then
+    for pair in "0:${MIN_P0:-614400}" "4:${MIN_P4:-652800}" "7:${MIN_P7:-652800}"; do
+      idx=${pair%:*}
+      mn=${pair#*:}
+      snode="/sys/devices/system/cpu/cpufreq/policy$idx/scaling_min_freq"
+      [ -e "$snode" ] || continue
+      chmod 0644 "$snode" 2>/dev/null
+      printf '%s\n' "$mn" > "$snode" 2>/dev/null
+    done
+    CPU_LOCK_APPLIED=0
+  fi
+}
+
 run_cycle() {
   CYCLE=$((CYCLE + 1))
   read_config
@@ -433,6 +541,7 @@ run_cycle() {
   handle_rsc_and_walt
   clear_cooling_and_caps
   unlock_gpu_and_fps
+  apply_clock_locks
   log_z9_snapshot
 }
 
@@ -456,7 +565,7 @@ if [ "$1" = "--daemon-loop" ]; then
   echo -1000 > /proc/self/oom_score_adj 2>/dev/null
   init_hw_caps
   read_config
-  log "thermal_killer_z9(CN)_v1.0 daemon started PID=$$ cap=${CAP_MODE} fla=${FLA_MODE} heatctl=${HEATCTL_MODE} extra=${EXTRA_SERVICES} gpu=${GPU_MODE} fps=${FPS_MODE} guard=${GUARD_LIMIT}"
+  log "thermal_killer_z9(CN)_v1.1 daemon started PID=$$ cap=${CAP_MODE} fla=${FLA_MODE} heatctl=${HEATCTL_MODE} extra=${EXTRA_SERVICES} gpu=${GPU_MODE} fps=${FPS_MODE} guard=${GUARD_LIMIT} glock=${GPU_LOCK_MAX} clock=${CPU_LOCK_MAX}"
   while :; do
     [ -f "$MODDIR/toggle_off" ] && exit 0
     run_cycle
@@ -473,12 +582,20 @@ if [ -f "$LOCK" ]; then
   fi
 fi
 
-# Backup stock RSC/WALT values once before touching
+# Backup stock RSC/WALT & CPU/GPU min values once before touching
 if [ ! -f "$ORIG" ]; then
   {
     [ -r "$WALT_TP" ] && echo "WALT_TP=$(cat "$WALT_TP" 2>/dev/null)"
     [ -r "$RSC_FLA" ] && echo "RSC_FLA=$(cat "$RSC_FLA" 2>/dev/null)"
     [ -r "$RSC_MIN_CAP" ] && echo "RSC_MIN_CAP=$(cat "$RSC_MIN_CAP" 2>/dev/null)"
+    _m0=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq 2>/dev/null)
+    _m4=$(cat /sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq 2>/dev/null)
+    _m7=$(cat /sys/devices/system/cpu/cpufreq/policy7/scaling_min_freq 2>/dev/null)
+    [ -n "$_m0" ] && [ "$_m0" -lt "$MAX_P0" ] && echo "MIN_P0=$_m0"
+    [ -n "$_m4" ] && [ "$_m4" -lt "$MAX_P4" ] && echo "MIN_P4=$_m4"
+    [ -n "$_m7" ] && [ "$_m7" -lt "$MAX_P7" ] && echo "MIN_P7=$_m7"
+    _np=$(cat /sys/class/kgsl/kgsl-3d0/num_pwrlevels 2>/dev/null)
+    case "$_np" in ''|*[!0-9]*) echo "KGSL_STOCK_MIN_PWR=7" ;; *) echo "KGSL_STOCK_MIN_PWR=$((_np - 1))" ;; esac
   } > "$ORIG" 2>/dev/null
 fi
 
